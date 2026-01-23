@@ -4,6 +4,7 @@ const express = require("express");
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  ssl: { rejectUnauthorized: false },
 });
 
 const app = express();
@@ -19,11 +20,15 @@ app.get("/health", (req, res) => {
 
 app.get("/db-test", async (req, res) => {
   try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({ success: true, time: result.rows[0] });
+    const result = await pool.query("SELECT NOW() as now");
+    res.json({ success: true, now: result.rows[0].now });
   } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: "DB connection failed" });
+    console.error("DB ERROR:", err);
+    res.status(500).json({
+      success: false,
+      message: err.message,
+      code: err.code,
+    });
   }
 });
 
