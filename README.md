@@ -44,6 +44,29 @@ This tool is designed to save teams **10–20 hours per week** by automating rep
 
 ---
 
+## Architecture Overview
+
+This project is a backend-first internal tools dashboard designed to support workflow automation and AI-assisted reporting
+
+- Backend
+- Node.js + Express: Handles API routes, business logic, and integrations
+- PostgreSQL (Supabase): Primary data store for users and records and Managed cloud Postgres with SSL-secured connections
+- Environment-based configuration: Secrets and connection strings managed via .env
+
+- Database
+- Schema-driven design: SQL migrations stored in /schema and Explicit table definitions for users and records
+- Connection pooling: Uses pg Pool for efficient query handling
+
+- API Design
+- Health and diagnostic endpoints for uptime monitoring
+- Database test endpoint to verify live connectivity
+- Designed for easy expansion into: Authentication, Admin dashboards, and AI-generated summaries
+
+- Development Workflow
+- Local development with Node’s built-in --watch mode
+- Clean separation of client and server directories
+- Production-ready structure with minimal dependencies
+
 ## Status
 
 This project is currently in early development. Core architecture and planning are complete, with implementation underway.
