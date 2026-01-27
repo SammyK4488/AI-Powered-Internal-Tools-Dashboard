@@ -1,3 +1,6 @@
+//Token for Login
+const jwt = require("jsonwebtoken");
+
 // Load environment variables from .env file
 require("dotenv").config();
 
@@ -15,6 +18,31 @@ const app = express();
 
 //JSON Parsing Middleware
 app.use(express.json());
+
+//Middleware
+function requireAuth(req, res, next) {
+  const header = req.headers.authorization;
+
+  if (!header || !header.startsWith("Bearer ")) {
+    return res.status(401).json({ error: "missing token" });
+  }
+
+  const token = header.split(" ")[1];
+
+  try {
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    req.user = payload; // { userId, role, iat, exp }
+    next();
+  } catch (err) {
+    return res.status(401).json({ error: "invalid token" });
+  }
+}
+
+//Test Route for Protected Route
+app.get("/me", requireAuth, async (req, res) => {
+  // minimal: just echo token payload for now
+  res.json({ ok: true, user: req.user });
+});
 
 // Create a connection pool to the database
 // Uses DATABASE_URL from environment variables
@@ -73,6 +101,46 @@ app.post("/auth/register", async (req, res) => {
   }
 });
 
+//Login Route
+app.post("/auth/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "email and password required" });
+    }
+
+    const result = await pool.query(
+      "SELECT id, email, password_hash, role FROM public.users WHERE email = $1",
+      [email]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(401).json({ error: "invalid credentials" });
+    }
+
+    const user = result.rows[0];
+
+    const ok = await bcrypt.compare(password, user.password_hash);
+    if (!ok) {
+      return res.status(401).json({ error: "invalid credentials" });
+    }
+
+    const token = jwt.sign(
+      { userId: user.id, role: user.role },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    return res.json({
+      token,
+      user: { id: user.id, email: user.email, role: user.role },
+    });
+  } catch (err) {
+    console.error("LOGIN ERROR:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+});
 
 // Database connectivity test route
 // Confirms Postgres connection and query execution
