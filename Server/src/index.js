@@ -38,6 +38,47 @@ function requireAuth(req, res, next) {
   }
 }
 
+// Create a record (must be logged in)
+app.post("/records", requireAuth, async (req, res) => {
+  try {
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "title and content required" });
+    }
+
+    const result = await pool.query(
+      `INSERT INTO public.records (user_id, title, content)
+       VALUES ($1, $2, $3)
+       RETURNING id, user_id, title, content, created_at`,
+      [req.user.userId, title, content]
+    );
+
+    return res.status(201).json({ record: result.rows[0] });
+  } catch (err) {
+    console.error("CREATE RECORD ERROR:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+});
+
+// Get records for the logged-in user
+app.get("/records", requireAuth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT id, user_id, title, content, created_at
+       FROM public.records
+       WHERE user_id = $1
+       ORDER BY created_at DESC`,
+      [req.user.userId]
+    );
+
+    return res.json({ records: result.rows });
+  } catch (err) {
+    console.error("GET RECORDS ERROR:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+});
+
 //Test Route for Protected Route
 app.get("/me", requireAuth, async (req, res) => {
   // minimal: just echo token payload for now
