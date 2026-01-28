@@ -67,6 +67,12 @@ This project is a backend-first internal tools dashboard designed to support wor
 - Clean separation of client and server directories
 - Production-ready structure with minimal dependencies
 
+## Authorization
+
+- Users can only CRUD their own records.
+
+- Admins can update/delete any record.
+
 ## Status
 
 This project is currently in early development. Core architecture and planning are complete, with implementation underway.

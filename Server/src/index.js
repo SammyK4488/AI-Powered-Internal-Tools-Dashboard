@@ -38,6 +38,13 @@ function requireAuth(req, res, next) {
   }
 }
 
+function requireAdmin(req, res, next) {
+  if (req.user?.role !== "admin") {
+    return res.status(403).json({ error: "admin only" });
+  }
+  next();
+}
+
 // Create a record (must be logged in)
 app.post("/records", requireAuth, async (req, res) => {
   try {
@@ -75,6 +82,76 @@ app.get("/records", requireAuth, async (req, res) => {
     return res.json({ records: result.rows });
   } catch (err) {
     console.error("GET RECORDS ERROR:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+});
+
+//Update Record
+app.put("/records/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { title, content } = req.body;
+
+    if (!title || !content) {
+      return res.status(400).json({ error: "title and content required" });
+    }
+
+    // Admin can update any record, normal user can only update their own
+    const query =
+      req.user.role === "admin"
+        ? `UPDATE public.records
+           SET title = $1, content = $2
+           WHERE id = $3
+           RETURNING id, user_id, title, content, created_at`
+        : `UPDATE public.records
+           SET title = $1, content = $2
+           WHERE id = $3 AND user_id = $4
+           RETURNING id, user_id, title, content, created_at`;
+
+    const params =
+      req.user.role === "admin"
+        ? [title, content, id]
+        : [title, content, id, req.user.userId];
+
+    const result = await pool.query(query, params);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "record not found" });
+    }
+
+    return res.json({ record: result.rows[0] });
+  } catch (err) {
+    console.error("UPDATE RECORD ERROR:", err);
+    return res.status(500).json({ error: "server error" });
+  }
+});
+
+//Delete Record
+app.delete("/records/:id", requireAuth, async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const query =
+      req.user.role === "admin"
+        ? `DELETE FROM public.records
+           WHERE id = $1
+           RETURNING id`
+        : `DELETE FROM public.records
+           WHERE id = $1 AND user_id = $2
+           RETURNING id`;
+
+    const params =
+      req.user.role === "admin" ? [id] : [id, req.user.userId];
+
+    const result = await pool.query(query, params);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: "record not found" });
+    }
+
+    return res.json({ deleted: true, id: result.rows[0].id });
+  } catch (err) {
+    console.error("DELETE RECORD ERROR:", err);
     return res.status(500).json({ error: "server error" });
   }
 });
